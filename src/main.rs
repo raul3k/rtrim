@@ -89,14 +89,27 @@ fn parse_config(args: &[String]) -> Result<Config, &'static str> {
         return Err("Usage: rtrim --file <path> | rtrim --folder <path> | rtrim --help");
     }
 
-    // Check for verbose flag anywhere in args
-    let verbose = args.iter().any(|a| a == "--verbose" || a == "-v");
+    // Find the optional "--" end-of-flags marker
+    let dbl = args.iter().position(|a| a == "--");
+
+    // Check for verbose flag only before "--" (or all args if no "--")
+    let args_for_flags = if let Some(pos) = dbl { &args[..pos] } else { &args[..] };
+    let verbose = args_for_flags.iter().any(|a| *a == "--verbose" || *a == "-v");
 
     // Filter out verbose flags for mode parsing
-    let filtered_args: Vec<&String> = args
-        .iter()
-        .filter(|a| *a != "--verbose" && *a != "-v")
-        .collect();
+    let filtered_args: Vec<&String> = if let Some(pos) = dbl {
+        // Filter flags only before "--", then append everything after "--" unchanged
+        args[..pos]
+            .iter()
+            .filter(|a| *a != "--verbose" && *a != "-v")
+            .chain(args[pos + 1..].iter())
+            .collect()
+    } else {
+        // No "--" found, filter across all args
+        args.iter()
+            .filter(|a| *a != "--verbose" && *a != "-v")
+            .collect()
+    };
 
     if filtered_args.len() < 2 {
         return Err("Usage: rtrim --file <path> | rtrim --folder <path> | rtrim --help");
@@ -848,6 +861,37 @@ mod tests {
         ];
         let config = parse_config(&args).unwrap();
         assert!(!config.verbose);
+    }
+
+    #[test]
+    fn test_parse_config_double_dash_path() {
+        // Path "-v" after "--" should be treated as literal path, not as verbose flag
+        let args = vec![
+            "rtrim".to_string(),
+            "--file".to_string(),
+            "--".to_string(),
+            "-v".to_string(),
+        ];
+        let config = parse_config(&args).unwrap();
+        assert_eq!(config.mode, Mode::File);
+        assert_eq!(config.path, PathBuf::from("-v"));
+        assert!(!config.verbose);
+    }
+
+    #[test]
+    fn test_parse_config_verbose_before_double_dash() {
+        // -v before "--" is recognized as verbose, "--verbose" after "--" is the path
+        let args = vec![
+            "rtrim".to_string(),
+            "-v".to_string(),
+            "--file".to_string(),
+            "--".to_string(),
+            "--verbose".to_string(),
+        ];
+        let config = parse_config(&args).unwrap();
+        assert_eq!(config.mode, Mode::File);
+        assert_eq!(config.path, PathBuf::from("--verbose"));
+        assert!(config.verbose);
     }
 
     #[test]
