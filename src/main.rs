@@ -92,11 +92,23 @@ fn parse_config(args: &[String]) -> Result<Config, &'static str> {
     // Check for verbose flag anywhere in args
     let verbose = args.iter().any(|a| a == "--verbose" || a == "-v");
 
+    // Find the optional "--" end-of-flags marker
+    let dbl = args.iter().position(|a| a == "--");
+
     // Filter out verbose flags for mode parsing
-    let filtered_args: Vec<&String> = args
-        .iter()
-        .filter(|a| *a != "--verbose" && *a != "-v")
-        .collect();
+    let filtered_args: Vec<&String> = if let Some(pos) = dbl {
+        // Filter flags only before "--", then append everything after "--" unchanged
+        args[..pos]
+            .iter()
+            .filter(|a| *a != "--verbose" && *a != "-v")
+            .chain(args[pos + 1..].iter())
+            .collect()
+    } else {
+        // No "--" found, filter across all args
+        args.iter()
+            .filter(|a| *a != "--verbose" && *a != "-v")
+            .collect()
+    };
 
     if filtered_args.len() < 2 {
         return Err("Usage: rtrim --file <path> | rtrim --folder <path> | rtrim --help");
