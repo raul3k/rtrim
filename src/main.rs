@@ -11,6 +11,7 @@ use std::time::SystemTime;
 struct Config {
     mode: Mode,
     path: PathBuf,
+    dry_run: bool,
 }
 
 #[derive(Debug, PartialEq)]
@@ -57,6 +58,9 @@ USAGE:
     rtrim --folder <path>     Process a folder recursively
     rtrim --help              Display this help message
 
+OPTIONS:
+    --dry-run                 Show what would be changed without modifying files
+
 DESCRIPTION:
     Removes trailing whitespace (spaces, tabs, etc.) from the end of each
     line in text files. Binary files are automatically detected and ignored.
@@ -74,6 +78,7 @@ IGNORED DIRECTORIES:
 EXAMPLES:
     rtrim --file src/main.rs
     rtrim --folder ./src
+    rtrim --folder ./src --dry-run
 "#;
     println!("{}", help);
 }
@@ -84,10 +89,13 @@ fn parse_config(args: &[String]) -> Result<Config, &'static str> {
         return Err("Usage: rtrim --file <path> | rtrim --folder <path> | rtrim --help");
     }
 
+    let dry_run = args.iter().any(|arg| arg == "--dry-run");
+
     match args[1].as_str() {
         "--help" | "-h" => Ok(Config {
             mode: Mode::Help,
             path: PathBuf::new(),
+            dry_run: false,
         }),
         "--file" => {
             if args.len() < 3 {
@@ -96,6 +104,7 @@ fn parse_config(args: &[String]) -> Result<Config, &'static str> {
             Ok(Config {
                 mode: Mode::File,
                 path: PathBuf::from(&args[2]),
+                dry_run,
             })
         }
         "--folder" => {
@@ -105,6 +114,7 @@ fn parse_config(args: &[String]) -> Result<Config, &'static str> {
             Ok(Config {
                 mode: Mode::Folder,
                 path: PathBuf::from(&args[2]),
+                dry_run,
             })
         }
         _ => Err("Invalid flag. Use --file, --folder, or --help."),
@@ -124,9 +134,9 @@ fn run(config: Config) -> io::Result<()> {
                 eprintln!("Warning: Ignoring symlink {:?}", config.path);
                 return Ok(());
             }
-            process_file(&config.path)
+            process_file(&config.path, config.dry_run)
         }
-        Mode::Folder => process_folder(&config.path),
+        Mode::Folder => process_folder(&config.path, config.dry_run),
     }
 }
 
@@ -139,7 +149,7 @@ fn should_ignore_dir(path: &Path) -> bool {
 }
 
 /// Recursive filesystem traversal (without following symlinks).
-fn process_folder(dir: &Path) -> io::Result<()> {
+fn process_folder(dir: &Path, dry_run: bool) -> io::Result<()> {
     // Use symlink_metadata to avoid following symlinks
     let metadata = fs::symlink_metadata(dir)?;
 
@@ -178,9 +188,9 @@ fn process_folder(dir: &Path) -> io::Result<()> {
             if should_ignore_dir(&path) {
                 continue;
             }
-            process_folder(&path)?;
+            process_folder(&path, dry_run)?;
         } else if entry_metadata.is_file() {
-            if let Err(e) = process_file(&path) {
+            if let Err(e) = process_file(&path, dry_run) {
                 eprintln!("Warning: Error processing {:?}: {}", path, e);
             }
         }
@@ -245,7 +255,7 @@ fn trim_trailing_whitespace(content: &str) -> TrimResult {
 }
 
 /// Individual file processing with security validation and atomicity.
-fn process_file(path: &Path) -> io::Result<()> {
+fn process_file(path: &Path, dry_run: bool) -> io::Result<()> {
     // Double-check it's not a symlink (defense in depth)
     let original_metadata = fs::symlink_metadata(path)?;
     if original_metadata.file_type().is_symlink() {
@@ -271,6 +281,11 @@ fn process_file(path: &Path) -> io::Result<()> {
     let result = trim_trailing_whitespace(content);
 
     if result.modified {
+        if dry_run {
+            println!("Would process: {:?}", path);
+            return Ok(());
+        }
+
         // Generate unique temp name (prevents collisions and symlink attacks)
         let temp_path = generate_temp_path(path);
 
@@ -608,7 +623,7 @@ mod tests {
         let test_file = test_dir.join("test.txt");
 
         fs::write(&test_file, "hello   \nworld\t\n").unwrap();
-        process_file(&test_file).unwrap();
+        process_file(&test_file, false).unwrap();
 
         let content = fs::read_to_string(&test_file).unwrap();
         assert_eq!(content, "hello\nworld\n");
@@ -624,7 +639,7 @@ mod tests {
         fs::write(&test_file, "hello   \n").unwrap();
         fs::set_permissions(&test_file, Permissions::from_mode(0o754)).unwrap();
 
-        process_file(&test_file).unwrap();
+        process_file(&test_file, false).unwrap();
 
         let metadata = fs::metadata(&test_file).unwrap();
         assert_eq!(metadata.permissions().mode() & 0o777, 0o754);
@@ -641,7 +656,7 @@ mod tests {
         fs::write(&test_file, &[0xFF, 0xFE, 0x00, 0x01]).unwrap();
         let original_content = fs::read(&test_file).unwrap();
 
-        process_file(&test_file).unwrap();
+        process_file(&test_file, false).unwrap();
 
         let new_content = fs::read(&test_file).unwrap();
         assert_eq!(original_content, new_content);
@@ -661,7 +676,7 @@ mod tests {
         // Small delay to ensure mtime would change if file is rewritten
         std::thread::sleep(std::time::Duration::from_millis(10));
 
-        process_file(&test_file).unwrap();
+        process_file(&test_file, false).unwrap();
 
         let mtime_after = fs::metadata(&test_file).unwrap().modified().unwrap();
         // File should not have been modified
@@ -679,7 +694,7 @@ mod tests {
         fs::write(&original_file, "hello   \n").unwrap();
         std::os::unix::fs::symlink(&original_file, &symlink_file).unwrap();
 
-        process_file(&symlink_file).unwrap();
+        process_file(&symlink_file, false).unwrap();
 
         // Original file should not have been modified
         let content = fs::read_to_string(&original_file).unwrap();
@@ -700,7 +715,7 @@ mod tests {
         fs::write(&file1, "line1   \n").unwrap();
         fs::write(&file2, "line2\t\n").unwrap();
 
-        process_folder(&test_dir).unwrap();
+        process_folder(&test_dir, false).unwrap();
 
         assert_eq!(fs::read_to_string(&file1).unwrap(), "line1\n");
         assert_eq!(fs::read_to_string(&file2).unwrap(), "line2\n");
@@ -717,7 +732,7 @@ mod tests {
         let git_file = git_dir.join("config");
         fs::write(&git_file, "content   \n").unwrap();
 
-        process_folder(&test_dir).unwrap();
+        process_folder(&test_dir, false).unwrap();
 
         // File inside .git should not have been modified
         let content = fs::read_to_string(&git_file).unwrap();
@@ -732,7 +747,7 @@ mod tests {
         let test_file = test_dir.join("test.txt");
 
         fs::write(&test_file, "hello   \n").unwrap();
-        process_file(&test_file).unwrap();
+        process_file(&test_file, false).unwrap();
 
         // Check no .tmp files are left
         let entries: Vec<_> = fs::read_dir(&test_dir)
@@ -742,6 +757,63 @@ mod tests {
             .collect();
 
         assert!(entries.is_empty(), "No temp files should remain");
+
+        cleanup_test_dir(&test_dir);
+    }
+
+    // ==================== Dry-run Tests ====================
+
+    #[test]
+    fn test_parse_config_dry_run_flag() {
+        let args = vec![
+            "rtrim".to_string(),
+            "--file".to_string(),
+            "test.txt".to_string(),
+            "--dry-run".to_string(),
+        ];
+        let config = parse_config(&args).unwrap();
+        assert!(config.dry_run);
+    }
+
+    #[test]
+    fn test_parse_config_no_dry_run_flag() {
+        let args = vec![
+            "rtrim".to_string(),
+            "--file".to_string(),
+            "test.txt".to_string(),
+        ];
+        let config = parse_config(&args).unwrap();
+        assert!(!config.dry_run);
+    }
+
+    #[test]
+    fn test_dry_run_does_not_modify_file() {
+        let test_dir = create_test_dir();
+        let test_file = test_dir.join("test.txt");
+
+        let original_content = "hello   \nworld\t\n";
+        fs::write(&test_file, original_content).unwrap();
+
+        process_file(&test_file, true).unwrap();
+
+        let content = fs::read_to_string(&test_file).unwrap();
+        assert_eq!(content, original_content, "File should not be modified in dry-run mode");
+
+        cleanup_test_dir(&test_dir);
+    }
+
+    #[test]
+    fn test_dry_run_folder_does_not_modify_files() {
+        let test_dir = create_test_dir();
+        let test_file = test_dir.join("test.txt");
+
+        let original_content = "hello   \n";
+        fs::write(&test_file, original_content).unwrap();
+
+        process_folder(&test_dir, true).unwrap();
+
+        let content = fs::read_to_string(&test_file).unwrap();
+        assert_eq!(content, original_content, "File should not be modified in dry-run mode");
 
         cleanup_test_dir(&test_dir);
     }
