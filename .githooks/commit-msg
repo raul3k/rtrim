@@ -1,5 +1,11 @@
 #!/bin/sh
 commit_msg=$(cat "$1")
+
+# Allow merge commits
+if echo "$commit_msg" | grep -Eq "^Merge "; then
+    exit 0
+fi
+
 pattern="^(feat|fix|docs|style|refactor|test|chore)(\(.+\))?: .{1,72}$"
 
 if ! echo "$commit_msg" | grep -Eq "$pattern"; then
