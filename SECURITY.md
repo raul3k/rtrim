@@ -11,11 +11,14 @@
 If you discover a security vulnerability in rtrim, please report it responsibly:
 
 1. **Do not** open a public issue
-2. Send an email to the maintainer with:
+2. Use [GitHub's private vulnerability reporting](https://github.com/raul3k/rtrim/security/advisories/new) to submit your report
+3. Include in your report:
    - Description of the vulnerability
    - Steps to reproduce
    - Potential impact
    - Any suggested fixes (optional)
+
+We will acknowledge receipt and provide updates on the fix timeline.
 
 ## Security Considerations
 
