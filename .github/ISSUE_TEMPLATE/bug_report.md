@@ -12,7 +12,7 @@ A clear and concise description of the bug.
 
 ## Steps to Reproduce
 
-1. Run `rtrim ...`
+1. ...
 2. ...
 
 ## Expected Behavior
@@ -25,9 +25,8 @@ What actually happened.
 
 ## Environment
 
-- OS: [e.g., Ubuntu 22.04, macOS 14]
-- rtrim version: [e.g., 0.1.0]
-- Rust version: [e.g., 1.75.0]
+- OS: [e.g., Ubuntu 22.04, macOS 14, Windows 11]
+- Version: [e.g., 1.0.0]
 
 ## Additional Context
 
