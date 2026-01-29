@@ -292,7 +292,10 @@ fn trim_trailing_whitespace(content: &str) -> TrimResult {
         output.pop();
     }
 
-    TrimResult { content: output, modified }
+    TrimResult {
+        content: output,
+        modified,
+    }
 }
 
 /// Individual file processing with security validation and atomicity.
@@ -803,7 +806,12 @@ mod tests {
         let entries: Vec<_> = fs::read_dir(&test_dir)
             .unwrap()
             .filter_map(|e| e.ok())
-            .filter(|e| e.path().extension().map(|ext| ext == "tmp").unwrap_or(false))
+            .filter(|e| {
+                e.path()
+                    .extension()
+                    .map(|ext| ext == "tmp")
+                    .unwrap_or(false)
+            })
             .collect();
 
         assert!(entries.is_empty(), "No temp files should remain");
