@@ -93,8 +93,14 @@ fn parse_config(args: &[String]) -> Result<Config, &'static str> {
     let dbl = args.iter().position(|a| a == "--");
 
     // Check for verbose flag only before "--" (or all args if no "--")
-    let args_for_flags = if let Some(pos) = dbl { &args[..pos] } else { &args[..] };
-    let verbose = args_for_flags.iter().any(|a| *a == "--verbose" || *a == "-v");
+    let args_for_flags = if let Some(pos) = dbl {
+        &args[..pos]
+    } else {
+        &args[..]
+    };
+    let verbose = args_for_flags
+        .iter()
+        .any(|a| *a == "--verbose" || *a == "-v");
 
     // Filter out verbose flags for mode parsing
     let filtered_args: Vec<&String> = if let Some(pos) = dbl {
