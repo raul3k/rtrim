@@ -10,6 +10,10 @@ Fixes #(issue number)
 - [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
 - [ ] Documentation update
 
+## Test Plan
+Describe how you tested these changes:
+- [ ] ...
+
 ## Checklist
 - [ ] My code follows the project's style guidelines
 - [ ] I have performed a self-review of my code
