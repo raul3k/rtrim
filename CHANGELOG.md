@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/raul3k/rtrim/compare/rtrim-v0.1.1...rtrim-v0.1.2) (2026-01-29)
+
+
+### Features
+
+* add repository quality improvements ([#8](https://github.com/raul3k/rtrim/issues/8)) ([debba79](https://github.com/raul3k/rtrim/commit/debba790691974b39ca6b5cfbd3f89c8235371f2))
+
 ## [0.1.1](https://github.com/raul3k/rtrim/compare/rtrim-v0.1.0...rtrim-v0.1.1) (2026-01-28)
 
 
