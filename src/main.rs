@@ -96,7 +96,7 @@ fn parse_config(args: &[String]) -> Result<Config, &'static str> {
     let args_for_flags = if let Some(pos) = dbl {
         &args[..pos]
     } else {
-        &args[..]
+        args
     };
     let verbose = args_for_flags
         .iter()
