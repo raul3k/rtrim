@@ -1,5 +1,9 @@
 # rtrim
 
+[![CI](https://github.com/raul3k/rtrim/actions/workflows/ci.yml/badge.svg)](https://github.com/raul3k/rtrim/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Rust](https://img.shields.io/badge/rust-1.70%2B-blue.svg)](https://www.rust-lang.org/)
+
 A high-performance CLI tool for removing trailing whitespace from text files. Built in Rust with a focus on safety, atomicity, and zero external dependencies.
 
 > **Note**: This is a learning project created to study Rust, file system operations, and safe system programming practices.

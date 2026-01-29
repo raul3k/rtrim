@@ -93,8 +93,14 @@ fn parse_config(args: &[String]) -> Result<Config, &'static str> {
     let dbl = args.iter().position(|a| a == "--");
 
     // Check for verbose flag only before "--" (or all args if no "--")
-    let args_for_flags = if let Some(pos) = dbl { &args[..pos] } else { &args[..] };
-    let verbose = args_for_flags.iter().any(|a| *a == "--verbose" || *a == "-v");
+    let args_for_flags = if let Some(pos) = dbl {
+        &args[..pos]
+    } else {
+        args
+    };
+    let verbose = args_for_flags
+        .iter()
+        .any(|a| *a == "--verbose" || *a == "-v");
 
     // Filter out verbose flags for mode parsing
     let filtered_args: Vec<&String> = if let Some(pos) = dbl {
@@ -292,7 +298,10 @@ fn trim_trailing_whitespace(content: &str) -> TrimResult {
         output.pop();
     }
 
-    TrimResult { content: output, modified }
+    TrimResult {
+        content: output,
+        modified,
+    }
 }
 
 /// Individual file processing with security validation and atomicity.
@@ -803,7 +812,12 @@ mod tests {
         let entries: Vec<_> = fs::read_dir(&test_dir)
             .unwrap()
             .filter_map(|e| e.ok())
-            .filter(|e| e.path().extension().map(|ext| ext == "tmp").unwrap_or(false))
+            .filter(|e| {
+                e.path()
+                    .extension()
+                    .map(|ext| ext == "tmp")
+                    .unwrap_or(false)
+            })
             .collect();
 
         assert!(entries.is_empty(), "No temp files should remain");
